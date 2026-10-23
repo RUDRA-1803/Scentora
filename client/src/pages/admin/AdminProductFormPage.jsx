@@ -38,6 +38,8 @@ export const AdminProductFormPage = () => {
   });
 
   const [errors, setErrors] = useState({});
+  const [submitError, setSubmitError] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (isEditMode && existingProduct) {
@@ -90,7 +92,7 @@ export const AdminProductFormPage = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) return;
 
@@ -127,7 +129,8 @@ export const AdminProductFormPage = () => {
       featured: formData.featured,
       bestseller: formData.bestseller,
       newArrival: formData.newArrival,
-      attributes: {
+      // Keep an edited product's existing attributes instead of overwriting them with defaults
+      attributes: existingProduct?.attributes || {
         longevity: '10-14 Hours',
         sillage: 'Refined & Lasting',
         occasion: 'All Occasions',
@@ -135,13 +138,19 @@ export const AdminProductFormPage = () => {
       },
     };
 
-    if (isEditMode) {
-      updateProduct(id, productPayload);
-    } else {
-      addProduct(productPayload);
+    setSubmitError('');
+    setIsSaving(true);
+    try {
+      if (isEditMode) {
+        await updateProduct(existingProduct?.id || id, productPayload);
+      } else {
+        await addProduct(productPayload);
+      }
+      navigate('/admin/products');
+    } catch (error) {
+      setSubmitError(error.message);
+      setIsSaving(false);
     }
-
-    navigate('/admin/products');
   };
 
   return (
@@ -149,6 +158,11 @@ export const AdminProductFormPage = () => {
       title={isEditMode ? `Edit Fragrance: ${formData.name}` : 'Formulate New Fragrance'}
     >
       <div className="space-y-6 max-w-4xl mx-auto">
+        {submitError && (
+          <div className="p-3.5 rounded-luxury bg-red-500/10 border border-red-500/20 text-xs text-red-500 font-medium">
+            {submitError}
+          </div>
+        )}
         <div className="flex items-center justify-between pb-4 border-b border-themeBorder">
           <Link
             to="/admin/products"
@@ -421,6 +435,7 @@ export const AdminProductFormPage = () => {
               type="submit"
               variant="primary"
               size="lg"
+              disabled={isSaving}
               className="flex items-center space-x-2"
             >
               <Save className="w-4 h-4" />

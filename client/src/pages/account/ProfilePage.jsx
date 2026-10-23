@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { User, MapPin, Package, Heart, Sparkles, Check, Settings, ShieldCheck } from 'lucide-react';
+import { User, MapPin, Package, Heart, Sparkles, Check, ShoppingBag, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useOrders } from '../../context/OrderContext';
 import { useWishlist } from '../../context/WishlistContext';
+import { useCart } from '../../context/CartContext';
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
 import Badge from '../../components/common/Badge';
@@ -12,9 +13,11 @@ export const ProfilePage = () => {
   const { user, updateProfile, logout } = useAuth();
   const { orders } = useOrders();
   const { wishlistCount } = useWishlist();
+  const { itemCount } = useCart();
 
   const [isEditing, setIsEditing] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   const [formData, setFormData] = useState({
     name: user?.name || 'Aaditya Sharma',
@@ -32,9 +35,10 @@ export const ProfilePage = () => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
-    updateProfile({
+    setSaveError('');
+    const result = await updateProfile({
       name: formData.name,
       email: formData.email,
       phone: formData.phone,
@@ -50,6 +54,10 @@ export const ProfilePage = () => {
       },
     });
 
+    if (!result.success) {
+      setSaveError(result.message);
+      return;
+    }
     setIsEditing(false);
     setSaveSuccess(true);
     setTimeout(() => setSaveSuccess(false), 3000);
@@ -79,7 +87,13 @@ export const ProfilePage = () => {
       {saveSuccess && (
         <div className="p-3.5 rounded-luxury bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-600 dark:text-emerald-400 flex items-center space-x-2">
           <Check className="w-4 h-4" />
-          <span>Profile changes saved successfully to demonstration storage.</span>
+          <span>Profile changes saved successfully to your Scentora account.</span>
+        </div>
+      )}
+
+      {saveError && (
+        <div className="p-3.5 rounded-luxury bg-red-500/10 border border-red-500/20 text-xs text-red-500 font-medium">
+          {saveError}
         </div>
       )}
 
@@ -116,16 +130,16 @@ export const ProfilePage = () => {
         </Link>
 
         <Link
-          to="/admin"
+          to="/cart"
           className="luxury-card p-5 flex items-center space-x-4 hover:border-accent group"
         >
           <div className="p-3 rounded-luxury bg-hoverSubtle text-accent group-hover:scale-105 transition-transform">
-            <Settings className="w-5 h-5" />
+            <ShoppingBag className="w-5 h-5" />
           </div>
           <div>
-            <span className="text-xs text-content-secondary">Atelier Admin</span>
+            <span className="text-xs text-content-secondary">Shopping Cart</span>
             <span className="font-serif text-lg font-bold text-content-primary block">
-              Manage Catalogue
+              {itemCount} {itemCount === 1 ? 'Item' : 'Items'}
             </span>
           </div>
         </Link>
@@ -299,7 +313,7 @@ export const ProfilePage = () => {
                 onClick={logout}
                 className="w-full text-center py-2 rounded-luxury text-xs text-red-500 hover:bg-red-500/10 transition-colors font-medium"
               >
-                Sign Out of Demo Account
+                Sign Out
               </button>
             </div>
           </div>

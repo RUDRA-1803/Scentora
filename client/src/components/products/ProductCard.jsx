@@ -5,10 +5,12 @@ import ProductImage from '../common/ProductImage';
 import Badge from '../common/Badge';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
+import { useRequireLogin } from '../../hooks/useRequireLogin';
 
 export const ProductCard = ({ product }) => {
   const { addToCart } = useCart();
   const { isInWishlist, toggleWishlist } = useWishlist();
+  const requireLogin = useRequireLogin();
 
   if (!product) return null;
 
@@ -24,12 +26,14 @@ export const ProductCard = ({ product }) => {
   const handleAddToCart = (e) => {
     e.preventDefault();
     e.stopPropagation();
+    if (!requireLogin()) return;
     addToCart(product, 1);
   };
 
   const handleToggleWishlist = (e) => {
     e.preventDefault();
     e.stopPropagation();
+    if (!requireLogin()) return;
     toggleWishlist(product);
   };
 

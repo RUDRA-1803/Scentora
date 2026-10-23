@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { 
   CheckCircle2, 
@@ -16,9 +16,35 @@ import Badge from '../../components/common/Badge';
 
 export const OrderSuccessPage = () => {
   const { id } = useParams();
-  const { getOrderById } = useOrders();
+  const { getOrderById, fetchOrderById } = useOrders();
 
-  const order = getOrderById(id);
+  const cachedOrder = getOrderById(id);
+  const [fetchedOrder, setFetchedOrder] = useState(null);
+  const [isLoading, setIsLoading] = useState(!cachedOrder);
+
+  // Deep link or page refresh: the order is not in memory, so ask the server
+  useEffect(() => {
+    if (cachedOrder) return undefined;
+    let cancelled = false;
+    setIsLoading(true);
+    fetchOrderById(id)
+      .then((order) => !cancelled && setFetchedOrder(order))
+      .catch(() => !cancelled && setFetchedOrder(null))
+      .finally(() => !cancelled && setIsLoading(false));
+    return () => {
+      cancelled = true;
+    };
+  }, [id, cachedOrder]);
+
+  const order = cachedOrder || fetchedOrder;
+
+  if (isLoading && !order) {
+    return (
+      <div className="py-20 text-center text-xs uppercase tracking-luxury text-content-secondary">
+        Retrieving your order…
+      </div>
+    );
+  }
 
   if (!order) {
     return (
@@ -27,7 +53,7 @@ export const OrderSuccessPage = () => {
           Order Record Not Found
         </h2>
         <p className="text-xs text-content-secondary">
-          No active demo order matching &ldquo;{id}&rdquo; was found in this session.
+          No order matching &ldquo;{id}&rdquo; was found for your account.
         </p>
         <Link to="/products">
           <Button variant="primary" size="md">
@@ -55,13 +81,13 @@ export const OrderSuccessPage = () => {
 
         <div className="space-y-2">
           <Badge variant="gold" size="sm">
-            Demo Order Confirmed
+            Order Confirmed
           </Badge>
           <h1 className="font-serif text-3xl sm:text-4xl font-semibold text-content-primary">
             Thank You for Your Patronage
           </h1>
           <p className="text-xs sm:text-sm text-content-secondary max-w-lg mx-auto leading-relaxed">
-            Your fragrance selection has been received by our atelier. A confirmation summary has been registered under your demonstration order ID.
+            Your fragrance selection has been received by our atelier. A confirmation summary has been registered under your order ID.
           </p>
         </div>
 

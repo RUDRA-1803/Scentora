@@ -1,63 +1,25 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Users, Search, Mail, Phone, MapPin, Calendar, Award } from 'lucide-react';
 import AdminLayout from '../../components/layout/AdminLayout';
 import Badge from '../../components/common/Badge';
+import { adminApi } from '../../services/scentoraApi';
 
 export const AdminCustomersPage = () => {
   const [search, setSearch] = useState('');
 
-  const sampleCustomers = [
-    {
-      id: 'cust-01',
-      name: 'Aaditya Sharma',
-      email: 'aaditya.sharma@example.com',
-      phone: '+91 98765 43210',
-      city: 'Mumbai',
-      state: 'Maharashtra',
-      registeredAt: '2026-01-15',
-      ordersCount: 4,
-      totalSpend: 36800,
-      tier: 'Gold Patron',
-    },
-    {
-      id: 'cust-02',
-      name: 'Natasha Singhal',
-      email: 'natasha.s@example.com',
-      phone: '+91 98112 34567',
-      city: 'New Delhi',
-      state: 'Delhi',
-      registeredAt: '2026-02-01',
-      ordersCount: 3,
-      totalSpend: 24200,
-      tier: 'Silver Patron',
-    },
-    {
-      id: 'cust-03',
-      name: 'Vikramaditya Roy',
-      email: 'vikram.roy@example.com',
-      phone: '+91 97412 88990',
-      city: 'Bengaluru',
-      state: 'Karnataka',
-      registeredAt: '2026-02-18',
-      ordersCount: 2,
-      totalSpend: 21700,
-      tier: 'Silver Patron',
-    },
-    {
-      id: 'cust-04',
-      name: 'Meera Chawla',
-      email: 'meera.chawla@example.com',
-      phone: '+91 94220 11223',
-      city: 'Pune',
-      state: 'Maharashtra',
-      registeredAt: '2026-03-01',
-      ordersCount: 1,
-      totalSpend: 8499,
-      tier: 'Member',
-    },
-  ];
+  const [customers, setCustomers] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
 
-  const filtered = sampleCustomers.filter(
+  useEffect(() => {
+    adminApi
+      .customers()
+      .then(setCustomers)
+      .catch((error) => setLoadError(error.message))
+      .finally(() => setIsLoading(false));
+  }, []);
+
+  const filtered = customers.filter(
     (c) =>
       c.name.toLowerCase().includes(search.toLowerCase()) ||
       c.email.toLowerCase().includes(search.toLowerCase()) ||
@@ -67,6 +29,12 @@ export const AdminCustomersPage = () => {
   return (
     <AdminLayout title="Client Connoisseur Registry">
       <div className="space-y-6">
+        {loadError && (
+          <div className="p-3.5 rounded-luxury bg-red-500/10 border border-red-500/20 text-xs text-red-500 font-medium">
+            {loadError}
+          </div>
+        )}
+
         {/* Top bar */}
         <div className="p-4 rounded-card bg-surface border border-themeBorder shadow-subtle flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="relative flex-1 max-w-sm">
@@ -81,7 +49,7 @@ export const AdminCustomersPage = () => {
           </div>
 
           <span className="text-xs text-content-secondary font-medium">
-            {filtered.length} Patrons Registered
+            {isLoading ? 'Loading patrons…' : `${filtered.length} Patrons Registered`}
           </span>
         </div>
 

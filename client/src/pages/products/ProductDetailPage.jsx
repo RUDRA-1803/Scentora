@@ -18,6 +18,7 @@ import {
 import { useProducts } from '../../context/ProductContext';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
+import { useRequireLogin } from '../../hooks/useRequireLogin';
 import ProductImage from '../../components/common/ProductImage';
 import Button from '../../components/common/Button';
 import Badge from '../../components/common/Badge';
@@ -30,6 +31,7 @@ export const ProductDetailPage = () => {
   const { getProductById, products } = useProducts();
   const { addToCart } = useCart();
   const { isInWishlist, toggleWishlist } = useWishlist();
+  const requireLogin = useRequireLogin();
 
   const product = getProductById(id);
 
@@ -76,6 +78,7 @@ export const ProductDetailPage = () => {
       : null;
 
   const handleAddToCart = () => {
+    if (!requireLogin()) return;
     addToCart(product, quantity);
   };
 
@@ -336,7 +339,7 @@ export const ProductDetailPage = () => {
               <Button
                 variant="secondary"
                 size="lg"
-                onClick={() => toggleWishlist(product)}
+                onClick={() => requireLogin() && toggleWishlist(product)}
                 className={`flex items-center justify-center space-x-2 ${
                   inWishlist ? 'border-brand-gold text-accent' : ''
                 }`}

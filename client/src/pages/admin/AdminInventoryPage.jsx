@@ -10,6 +10,13 @@ export const AdminInventoryPage = () => {
   const [search, setSearch] = useState('');
   const [onlyLowStock, setOnlyLowStock] = useState(false);
   const [updatedNotification, setUpdatedNotification] = useState('');
+  const [actionError, setActionError] = useState('');
+
+  // updateProduct applies the change immediately and reverts it if the server rejects it
+  const saveStock = (product, stock) =>
+    updateProduct(product.id, { stock }).catch((error) =>
+      setActionError(`Could not update "${product.name}": ${error.message}`)
+    );
 
   const filteredProducts = products.filter((p) => {
     const matchesSearch =
@@ -21,19 +28,25 @@ export const AdminInventoryPage = () => {
 
   const handleAdjustStock = (product, delta) => {
     const newStock = Math.max(0, (product.stock || 0) + delta);
-    updateProduct(product.id, { stock: newStock });
+    setActionError('');
+    saveStock(product, newStock);
     setUpdatedNotification(`Updated stock for "${product.name}" to ${newStock} units.`);
     setTimeout(() => setUpdatedNotification(''), 2500);
   };
 
   const handleSetStock = (product, value) => {
     const num = Math.max(0, parseInt(value, 10) || 0);
-    updateProduct(product.id, { stock: num });
+    saveStock(product, num);
   };
 
   return (
     <AdminLayout title="Atelier Inventory &amp; Stock Levels">
       <div className="space-y-6">
+        {actionError && (
+          <div className="p-3.5 rounded-luxury bg-red-500/10 border border-red-500/20 text-xs text-red-500 font-medium">
+            {actionError}
+          </div>
+        )}
         {updatedNotification && (
           <div className="p-3.5 rounded-luxury bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
             {updatedNotification}

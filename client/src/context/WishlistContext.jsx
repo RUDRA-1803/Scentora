@@ -1,10 +1,23 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import { useAuth } from './AuthContext';
+import { useProducts } from './ProductContext';
+import { accountApi } from '../services/scentoraApi';
+import { useAccountSync } from '../hooks/useAccountSync';
 
 const WishlistContext = createContext(null);
 const STORAGE_KEY_WISHLIST = 'scentora_wishlist_v1';
 
+// Saved account wishlist first, then anything new the guest added
+const mergeWishlists = (serverProducts, localProducts) => {
+  const ids = new Set(serverProducts.map((p) => p.id));
+  return [...serverProducts, ...localProducts.filter((p) => !ids.has(p.id))];
+};
+
 export const WishlistProvider = ({ children }) => {
-  const [wishlist, setWishlist] = useState(() => {
+  const { user } = useAuth();
+  const { products } = useProducts();
+
+  const [storedWishlist, setWishlist] = useState(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY_WISHLIST);
       return saved ? JSON.parse(saved) : [];
@@ -16,11 +29,27 @@ export const WishlistProvider = ({ children }) => {
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY_WISHLIST, JSON.stringify(wishlist));
+      localStorage.setItem(STORAGE_KEY_WISHLIST, JSON.stringify(storedWishlist));
     } catch (e) {
       console.warn('Could not persist wishlist to localStorage', e);
     }
-  }, [wishlist]);
+  }, [storedWishlist]);
+
+  useAccountSync({
+    user,
+    value: storedWishlist,
+    setValue: setWishlist,
+    load: accountApi.getWishlist,
+    save: accountApi.saveWishlist,
+    merge: mergeWishlists,
+    empty: [],
+  });
+
+  // Current catalogue data only; products removed from the catalogue disappear
+  const wishlist = useMemo(() => {
+    const byId = new Map(products.map((p) => [p.id, p]));
+    return storedWishlist.filter((item) => byId.has(item.id)).map((item) => byId.get(item.id));
+  }, [storedWishlist, products]);
 
   const isInWishlist = (productId) => {
     return wishlist.some((item) => item.id === productId);

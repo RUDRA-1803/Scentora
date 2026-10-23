@@ -15,19 +15,26 @@ export const AdminCategoriesPage = () => {
   const [newDescription, setNewDescription] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
   const [notification, setNotification] = useState('');
+  const [actionError, setActionError] = useState('');
 
-  const handleAddCategory = (e) => {
+  const handleAddCategory = async (e) => {
     e.preventDefault();
     if (!newTitle.trim() || !newSlug.trim()) return;
 
-    addCategory({
-      title: newTitle.trim(),
-      subtitle: newSubtitle.trim() || 'Curated Collection',
-      slug: newSlug.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-      description: newDescription.trim() || 'Artisanal creations.',
-      image: 'https://images.unsplash.com/photo-1594035910387-fea47794261f?auto=format&fit=crop&w=1200&q=80',
-      tag: 'New Category',
-    });
+    setActionError('');
+    try {
+      await addCategory({
+        title: newTitle.trim(),
+        subtitle: newSubtitle.trim() || 'Curated Collection',
+        slug: newSlug.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+        description: newDescription.trim() || 'Artisanal creations.',
+        image: 'https://images.unsplash.com/photo-1594035910387-fea47794261f?auto=format&fit=crop&w=1200&q=80',
+        tag: 'New Category',
+      });
+    } catch (error) {
+      setActionError(error.message);
+      return;
+    }
 
     setNotification(`Category "${newTitle}" created successfully.`);
     setNewTitle('');
@@ -38,17 +45,27 @@ export const AdminCategoriesPage = () => {
     setTimeout(() => setNotification(''), 3000);
   };
 
-  const handleDelete = (id, title) => {
+  const handleDelete = async (id, title) => {
     if (window.confirm(`Delete category "${title}"?`)) {
-      deleteCategory(id);
-      setNotification(`Category "${title}" removed.`);
-      setTimeout(() => setNotification(''), 3000);
+      setActionError('');
+      try {
+        await deleteCategory(id);
+        setNotification(`Category "${title}" removed.`);
+        setTimeout(() => setNotification(''), 3000);
+      } catch (error) {
+        setActionError(error.message);
+      }
     }
   };
 
   return (
     <AdminLayout title="Category &amp; Taxonomy Management">
       <div className="space-y-6">
+        {actionError && (
+          <div className="p-3.5 rounded-luxury bg-red-500/10 border border-red-500/20 text-xs text-red-500 font-medium">
+            {actionError}
+          </div>
+        )}
         {notification && (
           <div className="p-3.5 rounded-luxury bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
             {notification}

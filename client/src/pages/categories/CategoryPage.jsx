@@ -2,7 +2,6 @@ import React, { useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Sparkles, Filter } from 'lucide-react';
 import { useProducts } from '../../context/ProductContext';
-import { CATEGORIES } from '../../data/categories';
 import ProductGrid from '../../components/products/ProductGrid';
 import Button from '../../components/common/Button';
 import Badge from '../../components/common/Badge';
@@ -10,12 +9,12 @@ import Badge from '../../components/common/Badge';
 export const CategoryPage = () => {
   const { category: rawCategory } = useParams();
   const categorySlug = (rawCategory || '').toLowerCase();
-  const { products } = useProducts();
+  const { products, categories } = useProducts();
 
   const [sort, setSort] = useState('recommended');
 
   // Find metadata for current category
-  const categoryMeta = CATEGORIES.find(
+  const categoryMeta = categories.find(
     (c) => c.slug === categorySlug || c.id === categorySlug
   ) || {
     title: categorySlug.replace(/-/g, ' ').toUpperCase(),

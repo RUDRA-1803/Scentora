@@ -19,9 +19,26 @@ import Badge from '../../components/common/Badge';
 
 export const CheckoutPage = () => {
   const navigate = useNavigate();
-  const { items, subtotal, discountAmount, shippingCharge, total, clearCart } = useCart();
-  const { createDemoOrder } = useOrders();
+  const { items, subtotal, discountAmount, coupon, shippingCharge, total, clearCart } = useCart();
+  const { createOrder } = useOrders();
   const { user } = useAuth();
+
+  // Pre-fill form from authenticated user or sensible defaults
+  const [formData, setFormData] = useState({
+    fullName: user?.name || 'Aaditya Sharma',
+    email: user?.email || 'aaditya.sharma@example.com',
+    phone: user?.phone || '+91 98765 43210',
+    street: user?.address?.street || '42 Marine Drive, Nariman Point',
+    city: user?.address?.city || 'Mumbai',
+    state: user?.address?.state || 'Maharashtra',
+    postalCode: user?.address?.postalCode || '400021',
+    paymentMethod: 'Cash on Delivery (Demo)',
+    giftNote: '',
+  });
+
+  const [errors, setErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
 
   // Redirect if cart is empty
   if (items.length === 0) {
@@ -41,22 +58,6 @@ export const CheckoutPage = () => {
       </div>
     );
   }
-
-  // Pre-fill form from authenticated user or sensible defaults
-  const [formData, setFormData] = useState({
-    fullName: user?.name || 'Aaditya Sharma',
-    email: user?.email || 'aaditya.sharma@example.com',
-    phone: user?.phone || '+91 98765 43210',
-    street: user?.address?.street || '42 Marine Drive, Nariman Point',
-    city: user?.address?.city || 'Mumbai',
-    state: user?.address?.state || 'Maharashtra',
-    postalCode: user?.address?.postalCode || '400021',
-    paymentMethod: 'Cash on Delivery (Demo)',
-    giftNote: '',
-  });
-
-  const [errors, setErrors] = useState({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -84,13 +85,14 @@ export const CheckoutPage = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handlePlaceOrder = (e) => {
+  const handlePlaceOrder = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
 
     setIsSubmitting(true);
+    setSubmitError('');
 
-    // Build order object
+    // Build order object — the server re-prices items and re-checks stock
     const orderPayload = {
       customer: {
         fullName: formData.fullName,
@@ -103,27 +105,21 @@ export const CheckoutPage = () => {
       },
       items: items.map((i) => ({
         id: i.product.id,
-        name: i.product.name,
-        brand: i.product.brand,
-        price: i.product.price,
         quantity: i.quantity,
-        volume: i.product.volume,
-        image: i.product.images?.[0] || '',
       })),
-      subtotal,
-      discount: discountAmount,
-      shipping: shippingCharge,
-      total,
+      couponCode: coupon?.code || null,
       paymentMethod: formData.paymentMethod,
       giftNote: formData.giftNote,
     };
 
-    setTimeout(() => {
-      const createdOrder = createDemoOrder(orderPayload);
-      clearCart();
-      setIsSubmitting(false);
+    try {
+      const createdOrder = await createOrder(orderPayload);
       navigate(`/order-success/${createdOrder.id}`);
-    }, 600);
+      clearCart();
+    } catch (error) {
+      setSubmitError(error.message);
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -133,10 +129,10 @@ export const CheckoutPage = () => {
         <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
         <div>
           <strong className="font-semibold block">
-            Phase 1 Frontend Demonstration Checkout
+            Demonstration Checkout
           </strong>
           <span>
-            This is a simulated checkout interface for college project review. No real payment gateway or server-side credit card charge will occur. Submitting creates a local demo order viewable in your Orders history.
+            This is a simulated checkout interface for college project review. No real payment gateway or credit card charge will occur. Submitting saves your order to the Scentora server and reserves stock; signed-in customers can view it in their Orders history.
           </span>
         </div>
       </div>
@@ -361,6 +357,12 @@ export const CheckoutPage = () => {
                 <span className="text-xl">₹{total.toLocaleString('en-IN')}</span>
               </div>
             </div>
+
+            {submitError && (
+              <div className="p-3 rounded-luxury bg-red-500/10 border border-red-500/20 text-xs text-red-500 font-medium">
+                {submitError}
+              </div>
+            )}
 
             {/* Place Order CTA Button */}
             <Button
