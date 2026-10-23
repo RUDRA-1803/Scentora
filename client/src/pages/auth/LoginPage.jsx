@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Eye, EyeOff, Lock, Mail, ArrowRight, ShieldCheck, Sparkles } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import Button from '../../components/common/Button';
@@ -8,6 +8,7 @@ import Badge from '../../components/common/Badge';
 
 export const LoginPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { login, adminLogin } = useAuth();
 
   const [email, setEmail] = useState('');
@@ -15,6 +16,19 @@ export const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Return to the page that required sign-in, if any
+  const destination = location.state?.from || '/profile';
+
+  const signIn = async (authCall, target) => {
+    setError('');
+    setIsSubmitting(true);
+    const result = await authCall();
+    setIsSubmitting(false);
+    if (result.success) navigate(target);
+    else setError(result.message);
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -27,22 +41,19 @@ export const LoginPage = () => {
       return;
     }
 
-    login(email, password);
-    navigate('/profile');
+    signIn(() => login(email, password), destination);
   };
 
   const handleQuickCustomer = () => {
     setEmail('connoisseur@scentora.com');
     setPassword('perfume123');
-    login('connoisseur@scentora.com', 'perfume123');
-    navigate('/profile');
+    signIn(() => login('connoisseur@scentora.com', 'perfume123'), destination);
   };
 
   const handleQuickAdmin = () => {
     setEmail('admin@scentora.com');
-    setPassword('admin123');
-    adminLogin('admin@scentora.com', 'admin123');
-    navigate('/admin');
+    setPassword('scentora2026');
+    signIn(() => adminLogin('admin@scentora.com', 'scentora2026'), '/admin');
   };
 
   return (
@@ -151,7 +162,7 @@ export const LoginPage = () => {
             </label>
           </div>
 
-          <Button type="submit" variant="primary" size="lg" className="w-full">
+          <Button type="submit" variant="primary" size="lg" className="w-full" disabled={isSubmitting}>
             <span>Sign In to Atelier</span>
             <ArrowRight className="w-4 h-4 ml-1.5" />
           </Button>

@@ -152,7 +152,7 @@ export const AdminLayout = ({ children, title = 'Atelier Administration' }) => {
           <div className="flex items-center space-x-3">
             <div className="hidden sm:flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-[11px] font-medium">
               <AlertTriangle className="w-3.5 h-3.5" />
-              <span>Demo Storage (localStorage)</span>
+              <span>Live Data (MongoDB)</span>
             </div>
 
             <ThemeToggle />

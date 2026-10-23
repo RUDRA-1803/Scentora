@@ -2,16 +2,24 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Sparkles, ArrowRight, ShieldCheck, Mail, CheckCircle2 } from 'lucide-react';
 import Button from '../common/Button';
+import { storeApi } from '../../services/scentoraApi';
 
 export const Footer = () => {
   const [email, setEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
+  const [subscribeError, setSubscribeError] = useState('');
 
-  const handleSubscribe = (e) => {
+  const handleSubscribe = async (e) => {
     e.preventDefault();
     if (email && email.includes('@')) {
-      setSubscribed(true);
-      setEmail('');
+      try {
+        await storeApi.subscribe(email);
+        setSubscribed(true);
+        setSubscribeError('');
+        setEmail('');
+      } catch (err) {
+        setSubscribeError(err.message);
+      }
     }
   };
 
@@ -59,6 +67,9 @@ export const Footer = () => {
                     <ArrowRight className="w-3.5 h-3.5 ml-1" />
                   </Button>
                 </form>
+              )}
+              {subscribeError && !subscribed && (
+                <p className="mt-2 text-[11px] text-red-500 font-medium">{subscribeError}</p>
               )}
             </div>
           </div>
@@ -172,21 +183,6 @@ export const Footer = () => {
               Project Architecture
             </h4>
             <ul className="space-y-2 text-xs text-content-secondary">
-              <li>
-                <Link to="/admin" className="hover:text-accent transition-colors">
-                  Admin Dashboard
-                </Link>
-              </li>
-              <li>
-                <Link to="/admin/products" className="hover:text-accent transition-colors">
-                  Catalogue Management
-                </Link>
-              </li>
-              <li>
-                <Link to="/admin/orders" className="hover:text-accent transition-colors">
-                  Order Management
-                </Link>
-              </li>
               <li>
                 <Link to="/dev/design-system" className="hover:text-accent transition-colors">
                   Design System Showcase

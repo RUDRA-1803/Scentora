@@ -12,6 +12,7 @@ import { AuthProvider } from './context/AuthContext';
 // Common Components
 import MainLayout from './layouts/MainLayout';
 import NotificationToast from './components/common/NotificationToast';
+import { RequireAuth, RequireAdmin } from './components/common/RouteGuards';
 
 // Storefront Customer Pages
 import HomePage from './pages/home/HomePage';
@@ -60,11 +61,11 @@ function ScrollToTop() {
 export function App() {
   return (
     <ThemeProvider>
-      <ProductProvider>
-        <CartProvider>
-          <WishlistProvider>
-            <OrderProvider>
-              <AuthProvider>
+      <AuthProvider>
+        <ProductProvider>
+          <CartProvider>
+            <WishlistProvider>
+              <OrderProvider>
                 <Router>
                   <ScrollToTop />
                   <NotificationToast />
@@ -74,14 +75,14 @@ export function App() {
                         ADMIN ROUTES (Separate dedicated layout)
                        ========================================= */}
                     <Route path="/admin/login" element={<AdminLoginPage />} />
-                    <Route path="/admin" element={<AdminDashboardPage />} />
-                    <Route path="/admin/products" element={<AdminProductsPage />} />
-                    <Route path="/admin/products/new" element={<AdminProductFormPage />} />
-                    <Route path="/admin/products/:id/edit" element={<AdminProductFormPage />} />
-                    <Route path="/admin/categories" element={<AdminCategoriesPage />} />
-                    <Route path="/admin/orders" element={<AdminOrdersPage />} />
-                    <Route path="/admin/customers" element={<AdminCustomersPage />} />
-                    <Route path="/admin/inventory" element={<AdminInventoryPage />} />
+                    <Route path="/admin" element={<RequireAdmin><AdminDashboardPage /></RequireAdmin>} />
+                    <Route path="/admin/products" element={<RequireAdmin><AdminProductsPage /></RequireAdmin>} />
+                    <Route path="/admin/products/new" element={<RequireAdmin><AdminProductFormPage /></RequireAdmin>} />
+                    <Route path="/admin/products/:id/edit" element={<RequireAdmin><AdminProductFormPage /></RequireAdmin>} />
+                    <Route path="/admin/categories" element={<RequireAdmin><AdminCategoriesPage /></RequireAdmin>} />
+                    <Route path="/admin/orders" element={<RequireAdmin><AdminOrdersPage /></RequireAdmin>} />
+                    <Route path="/admin/customers" element={<RequireAdmin><AdminCustomersPage /></RequireAdmin>} />
+                    <Route path="/admin/inventory" element={<RequireAdmin><AdminInventoryPage /></RequireAdmin>} />
 
                     {/* =========================================
                         CUSTOMER STOREFRONT ROUTES (MainLayout)
@@ -129,25 +130,31 @@ export function App() {
                     <Route
                       path="/wishlist"
                       element={
-                        <MainLayout>
-                          <WishlistPage />
-                        </MainLayout>
+                        <RequireAuth>
+                          <MainLayout>
+                            <WishlistPage />
+                          </MainLayout>
+                        </RequireAuth>
                       }
                     />
                     <Route
                       path="/cart"
                       element={
-                        <MainLayout>
-                          <CartPage />
-                        </MainLayout>
+                        <RequireAuth>
+                          <MainLayout>
+                            <CartPage />
+                          </MainLayout>
+                        </RequireAuth>
                       }
                     />
                     <Route
                       path="/checkout"
                       element={
-                        <MainLayout>
-                          <CheckoutPage />
-                        </MainLayout>
+                        <RequireAuth>
+                          <MainLayout>
+                            <CheckoutPage />
+                          </MainLayout>
+                        </RequireAuth>
                       }
                     />
                     <Route
@@ -161,17 +168,21 @@ export function App() {
                     <Route
                       path="/orders"
                       element={
-                        <MainLayout>
-                          <OrdersPage />
-                        </MainLayout>
+                        <RequireAuth>
+                          <MainLayout>
+                            <OrdersPage />
+                          </MainLayout>
+                        </RequireAuth>
                       }
                     />
                     <Route
                       path="/profile"
                       element={
-                        <MainLayout>
-                          <ProfilePage />
-                        </MainLayout>
+                        <RequireAuth>
+                          <MainLayout>
+                            <ProfilePage />
+                          </MainLayout>
+                        </RequireAuth>
                       }
                     />
                     <Route
@@ -260,11 +271,11 @@ export function App() {
                     />
                   </Routes>
                 </Router>
-              </AuthProvider>
-            </OrderProvider>
-          </WishlistProvider>
-        </CartProvider>
-      </ProductProvider>
+              </OrderProvider>
+            </WishlistProvider>
+          </CartProvider>
+        </ProductProvider>
+      </AuthProvider>
     </ThemeProvider>
   );
 }

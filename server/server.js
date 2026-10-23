@@ -1,13 +1,20 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import mongoose from 'mongoose';
 import { connectDB } from './config/db.js';
+import { seedDatabase } from './seed/seeder.js';
 import apiRouter from './routes/index.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { notFoundHandler } from './middleware/notFoundHandler.js';
 
 // Load environment variables from .env file
 dotenv.config();
+
+if (!process.env.JWT_SECRET) {
+  console.error('❌ JWT_SECRET is not set in server/.env — authentication cannot work without it.');
+  process.exit(1);
+}
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -53,8 +60,8 @@ app.get('/', (req, res) => {
     project: 'Scentora',
     title: 'Scentora — A Web-Based E-Commerce Platform',
     tagline: 'Discover Your Signature Scent.',
-    phase: 'Phase 1: Project Foundation and Design System',
     healthCheck: '/api/health',
+    endpoints: ['/api/auth', '/api/products', '/api/categories', '/api/orders', '/api/account', '/api/admin'],
   });
 });
 
@@ -75,6 +82,16 @@ app.use(errorHandler);
 const startServer = async () => {
   // Connect to MongoDB asynchronously (non-blocking for server initialization)
   await connectDB();
+
+  // First run: populate an empty database with the demo catalogue, accounts and orders
+  if (mongoose.connection.readyState === 1) {
+    try {
+      const seeded = await seedDatabase();
+      if (Object.values(seeded).some(Boolean)) console.log('🌱 Seeded empty collections:', seeded);
+    } catch (error) {
+      console.warn(`⚠️  Auto-seed skipped: ${error.message}`);
+    }
+  }
 
   app.listen(PORT, () => {
     console.log(`\n======================================================`);

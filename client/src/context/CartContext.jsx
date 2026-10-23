@@ -1,10 +1,31 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import { useAuth } from './AuthContext';
+import { useProducts } from './ProductContext';
+import { accountApi, storeApi } from '../services/scentoraApi';
+import { useAccountSync } from '../hooks/useAccountSync';
 
 const CartContext = createContext(null);
 const STORAGE_KEY_CART = 'scentora_cart_v1';
 
+/**
+ * Combines the saved account cart with lines added as a guest.
+ * Quantities for the same product are added together.
+ */
+const mergeCarts = (serverItems, localItems) => {
+  const merged = new Map(serverItems.map((item) => [item.product.id, { ...item }]));
+  localItems.forEach((item) => {
+    const existing = merged.get(item.product.id);
+    if (existing) existing.quantity += item.quantity;
+    else merged.set(item.product.id, { ...item });
+  });
+  return [...merged.values()];
+};
+
 export const CartProvider = ({ children }) => {
-  const [items, setItems] = useState(() => {
+  const { user } = useAuth();
+  const { products } = useProducts();
+
+  const [storedItems, setItems] = useState(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY_CART);
       return saved ? JSON.parse(saved) : [];
@@ -19,20 +40,48 @@ export const CartProvider = ({ children }) => {
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY_CART, JSON.stringify(items));
+      localStorage.setItem(STORAGE_KEY_CART, JSON.stringify(storedItems));
     } catch (e) {
       console.warn('Could not persist cart to localStorage', e);
     }
-  }, [items]);
+  }, [storedItems]);
+
+  useAccountSync({
+    user,
+    value: storedItems,
+    setValue: setItems,
+    load: accountApi.getCart,
+    save: accountApi.saveCart,
+    merge: mergeCarts,
+    empty: [],
+  });
+
+  // Always show current catalogue data (price, stock) and drop products that were removed
+  const items = useMemo(() => {
+    const byId = new Map(products.map((p) => [p.id, p]));
+    return storedItems
+      .filter((item) => byId.has(item.product.id))
+      .map((item) => ({ ...item, product: byId.get(item.product.id) }));
+  }, [storedItems, products]);
 
   const notify = (message) => {
     setLastNotification({ id: Date.now(), message });
     setTimeout(() => setLastNotification(null), 3000);
   };
 
+  const stockOf = (productId) => products.find((p) => p.id === productId)?.stock ?? Infinity;
+
   const addToCart = (product, quantity = 1) => {
     if (!product || !product.id) return;
     const addQty = Math.max(1, Number(quantity) || 1);
+    const stock = stockOf(product.id);
+    const inCart = storedItems.find((item) => item.product.id === product.id)?.quantity || 0;
+
+    if (inCart >= stock) {
+      notify(stock === 0 ? `${product.name} is currently out of stock.` : `Only ${stock} unit(s) of ${product.name} are available.`);
+      return;
+    }
+    const finalQty = Math.min(addQty, stock - inCart);
 
     setItems((prev) => {
       const existingIndex = prev.findIndex((item) => item.product.id === product.id);
@@ -40,29 +89,25 @@ export const CartProvider = ({ children }) => {
         const updated = [...prev];
         updated[existingIndex] = {
           ...updated[existingIndex],
-          quantity: updated[existingIndex].quantity + addQty,
+          quantity: updated[existingIndex].quantity + finalQty,
         };
         return updated;
       } else {
-        return [...prev, { product, quantity: addQty }];
+        return [...prev, { product, quantity: finalQty }];
       }
     });
 
-    notify(`Added ${product.name} (${addQty}) to your shopping cart.`);
+    notify(`Added ${product.name} (${finalQty}) to your shopping cart.`);
   };
 
   const removeFromCart = (productId) => {
-    setItems((prev) => {
-      const item = prev.find((i) => i.product.id === productId);
-      if (item) {
-        notify(`Removed ${item.product.name} from your cart.`);
-      }
-      return prev.filter((i) => i.product.id !== productId);
-    });
+    const item = storedItems.find((i) => i.product.id === productId);
+    if (item) notify(`Removed ${item.product.name} from your cart.`);
+    setItems((prev) => prev.filter((i) => i.product.id !== productId));
   };
 
   const updateQuantity = (productId, quantity) => {
-    const validQty = Math.max(1, Number(quantity) || 1);
+    const validQty = Math.min(Math.max(1, Number(quantity) || 1), Math.max(1, stockOf(productId)));
     setItems((prev) =>
       prev.map((item) => {
         if (item.product.id === productId) {
@@ -78,14 +123,15 @@ export const CartProvider = ({ children }) => {
     setCoupon(null);
   };
 
-  const applyCoupon = (code) => {
-    const cleaned = (code || '').trim().toUpperCase();
-    if (cleaned === 'SCENT10') {
-      setCoupon({ code: 'SCENT10', discountPercent: 10 });
-      notify('Promo code SCENT10 applied: 10% discount added!');
-      return { success: true, message: '10% discount applied successfully.' };
+  const applyCoupon = async (code) => {
+    try {
+      const validCoupon = await storeApi.validateCoupon(code);
+      setCoupon(validCoupon);
+      notify(`Promo code ${validCoupon.code} applied: ${validCoupon.discountPercent}% discount added!`);
+      return { success: true, message: `${validCoupon.discountPercent}% discount applied successfully.` };
+    } catch (error) {
+      return { success: false, message: error.message };
     }
-    return { success: false, message: 'Invalid or expired promo code. Try SCENT10.' };
   };
 
   const removeCoupon = () => {
@@ -93,10 +139,10 @@ export const CartProvider = ({ children }) => {
     notify('Promo code removed.');
   };
 
-  // Calculations
+  // Calculations (display only — the server recalculates totals when the order is placed)
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
   const subtotal = items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
-  
+
   const discountAmount = coupon
     ? Math.round((subtotal * coupon.discountPercent) / 100)
     : 0;

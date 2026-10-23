@@ -1,112 +1,62 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { authApi, accountApi } from '../services/scentoraApi';
+import { tokenStorage } from '../services/api';
+import AppStatusScreen from '../components/common/AppStatusScreen';
 
 const AuthContext = createContext(null);
-const STORAGE_KEY_AUTH = 'scentora_demo_user_v1';
 
 export const AuthProvider = ({ children }) => {
-  // Demo user defaults to a signed-in demo customer so profile & order features are instantly accessible
-  const [user, setUser] = useState(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY_AUTH);
-      if (stored) return JSON.parse(stored);
-    } catch (e) {
-      console.warn('Error reading stored user:', e);
-    }
-    // Default demo customer profile
-    return {
-      id: 'usr-demo-01',
-      name: 'Aaditya Sharma',
-      email: 'aaditya.sharma@example.com',
-      phone: '+91 98765 43210',
-      role: 'customer',
-      address: {
-        street: '42 Marine Drive, Nariman Point',
-        city: 'Mumbai',
-        state: 'Maharashtra',
-        postalCode: '400021',
-      },
-      preferences: {
-        fragranceFamily: 'Woody Oriental',
-        newsletter: true,
-      },
-    };
-  });
+  const [user, setUser] = useState(null);
+  // Only block the first render when there is a saved session to restore
+  const [restoring, setRestoring] = useState(() => Boolean(tokenStorage.get()));
 
   useEffect(() => {
+    if (!tokenStorage.get()) return;
+
+    authApi
+      .me()
+      .then(setUser)
+      .catch((error) => {
+        // Expired or revoked token: forget it. Network errors keep it for the next reload.
+        if (error.status === 401) tokenStorage.clear();
+        console.warn('Could not restore session:', error.message);
+      })
+      .finally(() => setRestoring(false));
+  }, []);
+
+  const startSession = async (authCall) => {
     try {
-      if (user) {
-        localStorage.setItem(STORAGE_KEY_AUTH, JSON.stringify(user));
-      } else {
-        localStorage.removeItem(STORAGE_KEY_AUTH);
-      }
-    } catch (e) {
-      console.warn('Could not persist user to localStorage', e);
+      const { token, user: signedInUser } = await authCall();
+      tokenStorage.set(token);
+      setUser(signedInUser);
+      return { success: true, user: signedInUser };
+    } catch (error) {
+      return { success: false, message: error.message };
     }
-  }, [user]);
-
-  const login = (email, password) => {
-    const isMockAdmin = email.toLowerCase().includes('admin');
-    const newUser = {
-      id: `usr-${Date.now().toString(36)}`,
-      name: isMockAdmin ? 'Scentora Administrator' : email.split('@')[0],
-      email: email,
-      role: isMockAdmin ? 'admin' : 'customer',
-      phone: '+91 98765 43210',
-      address: {
-        street: '42 Marine Drive, Nariman Point',
-        city: 'Mumbai',
-        state: 'Maharashtra',
-        postalCode: '400021',
-      },
-      preferences: {
-        fragranceFamily: 'Woody Oriental',
-        newsletter: true,
-      },
-    };
-    setUser(newUser);
-    return { success: true, user: newUser };
   };
 
-  const adminLogin = (email = 'admin@scentora.com', password = 'admin') => {
-    const adminUser = {
-      id: 'usr-admin-01',
-      name: 'Scentora Atelier Admin',
-      email: email || 'admin@scentora.com',
-      role: 'admin',
-    };
-    setUser(adminUser);
-    return { success: true, user: adminUser };
-  };
+  const login = (email, password) => startSession(() => authApi.login(email, password));
 
-  const register = (userData) => {
-    const newUser = {
-      id: `usr-${Date.now().toString(36)}`,
-      name: userData.fullName || userData.name || 'Scentora Guest',
-      email: userData.email,
-      phone: userData.phone || '+91 98765 43210',
-      role: 'customer',
-      address: {
-        street: userData.street || '42 Marine Drive',
-        city: userData.city || 'Mumbai',
-        state: userData.state || 'Maharashtra',
-        postalCode: userData.postalCode || '400021',
-      },
-      preferences: {
-        fragranceFamily: 'All Families',
-        newsletter: true,
-      },
-    };
-    setUser(newUser);
-    return { success: true, user: newUser };
-  };
+  const adminLogin = (email, password) => startSession(() => authApi.adminLogin(email, password));
+
+  const register = (userData) => startSession(() => authApi.register(userData));
 
   const logout = () => {
+    tokenStorage.clear();
     setUser(null);
   };
 
-  const updateProfile = (fields) => {
-    setUser((prev) => (prev ? { ...prev, ...fields } : prev));
+  const updateProfile = async (fields) => {
+    try {
+      const updated = await accountApi.updateProfile(fields);
+      setUser(updated);
+      return { success: true, user: updated };
+    } catch (error) {
+      return { success: false, message: error.message };
+    }
   };
+
+  if (restoring) return <AppStatusScreen message="Restoring your session…" />;
 
   return (
     <AuthContext.Provider

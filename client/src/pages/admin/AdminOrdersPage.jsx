@@ -9,6 +9,7 @@ export const AdminOrdersPage = () => {
   const [filterStatus, setFilterStatus] = useState('All');
   const [search, setSearch] = useState('');
   const [notification, setNotification] = useState('');
+  const [actionError, setActionError] = useState('');
 
   const filteredOrders = orders.filter((o) => {
     const matchesStatus =
@@ -20,10 +21,15 @@ export const AdminOrdersPage = () => {
     return matchesStatus && matchesSearch;
   });
 
-  const handleStatusChange = (orderId, newStatus) => {
-    updateOrderStatus(orderId, newStatus);
-    setNotification(`Order ${orderId} updated to status "${newStatus}".`);
-    setTimeout(() => setNotification(''), 3000);
+  const handleStatusChange = async (orderId, newStatus) => {
+    setActionError('');
+    try {
+      await updateOrderStatus(orderId, newStatus);
+      setNotification(`Order ${orderId} updated to status "${newStatus}".`);
+      setTimeout(() => setNotification(''), 3000);
+    } catch (error) {
+      setActionError(error.message);
+    }
   };
 
   const getStatusBadge = (status) => {
@@ -41,6 +47,11 @@ export const AdminOrdersPage = () => {
   return (
     <AdminLayout title="Order Processing &amp; Fulfillment">
       <div className="space-y-6">
+        {actionError && (
+          <div className="p-3.5 rounded-luxury bg-red-500/10 border border-red-500/20 text-xs text-red-500 font-medium">
+            {actionError}
+          </div>
+        )}
         {notification && (
           <div className="p-3.5 rounded-luxury bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
             {notification}

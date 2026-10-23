@@ -1,57 +1,31 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { INITIAL_PRODUCTS } from '../data/products';
-import { CATEGORIES as INITIAL_CATEGORIES } from '../data/categories';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { productApi, categoryApi, adminApi } from '../services/scentoraApi';
+import AppStatusScreen from '../components/common/AppStatusScreen';
 
 const ProductContext = createContext(null);
 
-const STORAGE_KEY_PRODUCTS = 'scentora_products_v1';
-const STORAGE_KEY_CATEGORIES = 'scentora_categories_v1';
-
 export const ProductProvider = ({ children }) => {
-  // Load products from localStorage or fall back to INITIAL_PRODUCTS
-  const [products, setProducts] = useState(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY_PRODUCTS);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch (e) {
-      console.warn('Error reading stored products:', e);
-    }
-    return INITIAL_PRODUCTS;
-  });
+  const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [status, setStatus] = useState('loading'); // 'loading' | 'ready' | 'error'
+  const [loadError, setLoadError] = useState(null);
 
-  // Load categories from localStorage or fall back to INITIAL_CATEGORIES
-  const [categories, setCategories] = useState(() => {
+  const loadCatalogue = useCallback(async () => {
+    setStatus('loading');
     try {
-      const stored = localStorage.getItem(STORAGE_KEY_CATEGORIES);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch (e) {
-      console.warn('Error reading stored categories:', e);
+      const [productList, categoryList] = await Promise.all([productApi.list(), categoryApi.list()]);
+      setProducts(productList);
+      setCategories(categoryList);
+      setStatus('ready');
+    } catch (error) {
+      setLoadError(error.message);
+      setStatus('error');
     }
-    return INITIAL_CATEGORIES;
-  });
-
-  // Sync to localStorage
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY_PRODUCTS, JSON.stringify(products));
-    } catch (e) {
-      console.warn('Could not save products to localStorage', e);
-    }
-  }, [products]);
+  }, []);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY_CATEGORIES, JSON.stringify(categories));
-    } catch (e) {
-      console.warn('Could not save categories to localStorage', e);
-    }
-  }, [categories]);
+    loadCatalogue();
+  }, [loadCatalogue]);
 
   // Lookup helper
   const getProductById = (id) => {
@@ -59,60 +33,61 @@ export const ProductProvider = ({ children }) => {
     return products.find((p) => p.id === id || p.slug === id) || null;
   };
 
-  // Admin mutation helpers
-  const addProduct = (newProduct) => {
-    const productWithId = {
-      ...newProduct,
-      id: newProduct.id || `sc-${Date.now().toString(36)}`,
-      createdAt: newProduct.createdAt || new Date().toISOString(),
-      price: Number(newProduct.price) || 0,
-      stock: Number(newProduct.stock) || 0,
-      rating: Number(newProduct.rating) || 5.0,
-      reviewCount: Number(newProduct.reviewCount) || 0,
-    };
-    setProducts((prev) => [productWithId, ...prev]);
-    return productWithId;
+  // Admin mutation helpers — each throws an Error with a readable message on failure
+  const addProduct = async (newProduct) => {
+    const created = await productApi.create(newProduct);
+    setProducts((prev) => [created, ...prev]);
+    return created;
   };
 
-  const updateProduct = (id, updatedFields) => {
-    setProducts((prev) =>
-      prev.map((p) => {
-        if (p.id === id) {
-          return {
-            ...p,
-            ...updatedFields,
-            price: Number(updatedFields.price !== undefined ? updatedFields.price : p.price),
-            stock: Number(updatedFields.stock !== undefined ? updatedFields.stock : p.stock),
-          };
-        }
-        return p;
-      })
-    );
+  // Optimistic so rapid edits (e.g. inventory steppers) feel instant; reverted if the server rejects
+  const updateProduct = async (id, updatedFields) => {
+    const previous = products.find((p) => p.id === id);
+    setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, ...updatedFields } : p)));
+
+    try {
+      const saved = await productApi.update(id, updatedFields);
+      setProducts((prev) => prev.map((p) => (p.id === id ? saved : p)));
+      return saved;
+    } catch (error) {
+      if (previous) setProducts((prev) => prev.map((p) => (p.id === id ? previous : p)));
+      throw error;
+    }
   };
 
-  const deleteProduct = (id) => {
+  const deleteProduct = async (id) => {
+    await productApi.remove(id);
     setProducts((prev) => prev.filter((p) => p.id !== id));
   };
 
-  const addCategory = (category) => {
-    const newCat = {
-      ...category,
-      id: category.slug || `cat-${Date.now().toString(36)}`,
-    };
-    setCategories((prev) => [...prev, newCat]);
-    return newCat;
+  const addCategory = async (category) => {
+    const created = await categoryApi.create(category);
+    setCategories((prev) => [...prev, created]);
+    return created;
   };
 
-  const deleteCategory = (id) => {
+  const deleteCategory = async (id) => {
+    await categoryApi.remove(id);
     setCategories((prev) => prev.filter((c) => c.id !== id && c.slug !== id));
   };
 
-  const resetToSeedData = () => {
-    setProducts(INITIAL_PRODUCTS);
-    setCategories(INITIAL_CATEGORIES);
-    localStorage.removeItem(STORAGE_KEY_PRODUCTS);
-    localStorage.removeItem(STORAGE_KEY_CATEGORIES);
+  const resetToSeedData = async () => {
+    await adminApi.resetCatalogue();
+    const [productList, categoryList] = await Promise.all([productApi.list(), categoryApi.list()]);
+    setProducts(productList);
+    setCategories(categoryList);
   };
+
+  // The storefront is built entirely on the catalogue, so wait for it before rendering
+  if (status !== 'ready') {
+    return (
+      <AppStatusScreen
+        message="Curating the collection…"
+        error={status === 'error' ? loadError : null}
+        onRetry={loadCatalogue}
+      />
+    );
+  }
 
   return (
     <ProductContext.Provider
@@ -126,6 +101,7 @@ export const ProductProvider = ({ children }) => {
         addCategory,
         deleteCategory,
         resetToSeedData,
+        reloadCatalogue: loadCatalogue,
       }}
     >
       {children}

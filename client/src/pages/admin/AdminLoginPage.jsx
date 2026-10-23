@@ -12,11 +12,17 @@ export const AdminLoginPage = () => {
 
   const [email, setEmail] = useState('admin@scentora.com');
   const [password, setPassword] = useState('scentora2026');
+  const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    adminLogin(email, password);
-    navigate('/admin');
+    setError('');
+    setIsSubmitting(true);
+    const result = await adminLogin(email, password);
+    setIsSubmitting(false);
+    if (result.success) navigate('/admin');
+    else setError(result.message);
   };
 
   return (
@@ -42,9 +48,15 @@ export const AdminLoginPage = () => {
             <span>Demonstration Access</span>
           </div>
           <p className="text-[11px] leading-relaxed">
-            This is a frontend administrative prototype. No server authentication is enforced. Any email/password will allow access for evaluation.
+            Sign in with an administrator account. The seeded demo admin is <strong>admin@scentora.com</strong> / <strong>scentora2026</strong>.
           </p>
         </div>
+
+        {error && (
+          <div className="p-3 rounded-luxury bg-red-500/10 border border-red-500/20 text-xs text-red-500 font-medium">
+            {error}
+          </div>
+        )}
 
         {/* Form */}
         <form onSubmit={handleLogin} className="space-y-4">
@@ -66,7 +78,7 @@ export const AdminLoginPage = () => {
             icon={Lock}
           />
 
-          <Button type="submit" variant="primary" size="lg" className="w-full flex items-center justify-center space-x-2">
+          <Button type="submit" variant="primary" size="lg" className="w-full flex items-center justify-center space-x-2" disabled={isSubmitting}>
             <span>Enter Atelier Console</span>
             <ArrowRight className="w-4 h-4" />
           </Button>

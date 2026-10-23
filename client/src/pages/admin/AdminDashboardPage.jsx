@@ -70,7 +70,7 @@ export const AdminDashboardPage = () => {
               <span className="font-serif text-2xl font-bold text-content-primary mt-1 block">
                 {totalOrders} Orders
               </span>
-              <span className="text-[11px] text-emerald-600 dark:text-emerald-400">Demo customer orders</span>
+              <span className="text-[11px] text-emerald-600 dark:text-emerald-400">Customer orders</span>
             </div>
             <div className="p-3 rounded-luxury bg-hoverSubtle text-emerald-600 border border-themeBorder">
               <ShoppingBag className="w-5 h-5" />

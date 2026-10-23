@@ -16,8 +16,9 @@ export const RegisterPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [agreedTerms, setAgreedTerms] = useState(false);
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!fullName.trim()) {
       setError('Full Name is required.');
@@ -40,8 +41,12 @@ export const RegisterPage = () => {
       return;
     }
 
-    register({ fullName, email, password });
-    navigate('/profile');
+    setError('');
+    setIsSubmitting(true);
+    const result = await register({ fullName, email, password });
+    setIsSubmitting(false);
+    if (result.success) navigate('/profile');
+    else setError(result.message);
   };
 
   const handleQuickFill = () => {
@@ -181,7 +186,7 @@ export const RegisterPage = () => {
             </label>
           </div>
 
-          <Button type="submit" variant="primary" size="lg" className="w-full">
+          <Button type="submit" variant="primary" size="lg" className="w-full" disabled={isSubmitting}>
             <span>Create Account</span>
             <ArrowRight className="w-4 h-4 ml-1.5" />
           </Button>

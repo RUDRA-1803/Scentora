@@ -22,6 +22,7 @@ export const AdminProductsPage = () => {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [productToDelete, setProductToDelete] = useState(null);
   const [notification, setNotification] = useState('');
+  const [actionError, setActionError] = useState('');
 
   const filteredProducts = useMemo(() => {
     return products.filter((p) => {
@@ -42,26 +43,41 @@ export const AdminProductsPage = () => {
     setProductToDelete(product);
   };
 
-  const executeDelete = () => {
+  const executeDelete = async () => {
     if (productToDelete) {
-      deleteProduct(productToDelete.id);
-      setNotification(`Deleted "${productToDelete.name}" from catalogue.`);
+      setActionError('');
+      try {
+        await deleteProduct(productToDelete.id);
+        setNotification(`Deleted "${productToDelete.name}" from catalogue.`);
+        setTimeout(() => setNotification(''), 3000);
+      } catch (error) {
+        setActionError(error.message);
+      }
       setProductToDelete(null);
-      setTimeout(() => setNotification(''), 3000);
     }
   };
 
-  const handleReset = () => {
+  const handleReset = async () => {
     if (window.confirm('Reset catalogue back to initial 18 seed fragrances?')) {
-      resetToSeedData();
-      setNotification('Catalogue restored to initial seed dataset.');
-      setTimeout(() => setNotification(''), 3000);
+      setActionError('');
+      try {
+        await resetToSeedData();
+        setNotification('Catalogue restored to initial seed dataset.');
+        setTimeout(() => setNotification(''), 3000);
+      } catch (error) {
+        setActionError(error.message);
+      }
     }
   };
 
   return (
     <AdminLayout title="Fragrance Catalogue Management">
       <div className="space-y-6">
+        {actionError && (
+          <div className="p-3.5 rounded-luxury bg-red-500/10 border border-red-500/20 text-xs text-red-500 font-medium">
+            {actionError}
+          </div>
+        )}
         {notification && (
           <div className="p-3.5 rounded-luxury bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
             {notification}

@@ -8,14 +8,13 @@ import {
   Menu, 
   X, 
   Sparkles, 
-  ShieldCheck, 
   LogOut, 
-  Settings, 
   Package,
-  Layers
+  Layers,
+  LogIn,
+  UserPlus
 } from 'lucide-react';
 import ThemeToggle from '../common/ThemeToggle';
-import Badge from '../common/Badge';
 import { useCart } from '../../context/CartContext';
 import { useWishlist } from '../../context/WishlistContext';
 import { useAuth } from '../../context/AuthContext';
@@ -38,6 +37,26 @@ export const Navbar = () => {
       setMobileMenuOpen(false);
     }
   };
+
+  const handleLogout = () => {
+    logout();
+    setAccountMenuOpen(false);
+    setMobileMenuOpen(false);
+    navigate('/');
+  };
+
+  const accountLinks = [
+    { label: 'My Profile', path: '/profile', icon: User },
+    { label: 'My Orders', path: '/orders', icon: Package },
+    { label: 'Design System Demo', path: '/dev/design-system', icon: Layers },
+  ];
+
+  const mobileAccountLinks = [
+    { label: 'My Profile', path: '/profile', icon: User },
+    { label: 'My Orders', path: '/orders', icon: Package },
+    { label: 'Wishlist', path: '/wishlist', icon: Heart, count: wishlistCount },
+    { label: 'Shopping Cart', path: '/cart', icon: ShoppingBag, count: itemCount },
+  ];
 
   const navLinks = [
     { label: 'Shop All', path: '/products' },
@@ -116,126 +135,104 @@ export const Navbar = () => {
               />
             </form>
 
-            {/* Wishlist Link */}
-            <Link
-              to="/wishlist"
-              aria-label={`Wishlist containing ${wishlistCount} items`}
-              title="View Wishlist"
-              className="relative p-2 rounded-full border border-themeBorder bg-surface text-content-primary hover:bg-hoverSubtle hover:border-accent transition-colors"
-            >
-              <Heart className="w-4 h-4" />
-              {wishlistCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-brand-gold text-brand-charcoal text-[10px] font-bold flex items-center justify-center shadow-subtle">
-                  {wishlistCount}
-                </span>
-              )}
-            </Link>
+            {isAuthenticated ? (
+              <>
+                {/* Wishlist Link */}
+                <Link
+                  to="/wishlist"
+                  aria-label={`Wishlist containing ${wishlistCount} items`}
+                  title="View Wishlist"
+                  className="relative p-2 rounded-full border border-themeBorder bg-surface text-content-primary hover:bg-hoverSubtle hover:border-accent transition-colors"
+                >
+                  <Heart className="w-4 h-4" />
+                  {wishlistCount > 0 && (
+                    <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-brand-gold text-brand-charcoal text-[10px] font-bold flex items-center justify-center shadow-subtle">
+                      {wishlistCount}
+                    </span>
+                  )}
+                </Link>
 
-            {/* Cart Link */}
-            <Link
-              to="/cart"
-              aria-label={`Shopping cart containing ${itemCount} items`}
-              title="View Shopping Cart"
-              className="relative p-2 rounded-full border border-themeBorder bg-surface text-content-primary hover:bg-hoverSubtle hover:border-accent transition-colors"
-            >
-              <ShoppingBag className="w-4 h-4" />
-              {itemCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center shadow-subtle">
-                  {itemCount}
-                </span>
-              )}
-            </Link>
+                {/* Cart Link */}
+                <Link
+                  to="/cart"
+                  aria-label={`Shopping cart containing ${itemCount} items`}
+                  title="View Shopping Cart"
+                  className="relative p-2 rounded-full border border-themeBorder bg-surface text-content-primary hover:bg-hoverSubtle hover:border-accent transition-colors"
+                >
+                  <ShoppingBag className="w-4 h-4" />
+                  {itemCount > 0 && (
+                    <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center shadow-subtle">
+                      {itemCount}
+                    </span>
+                  )}
+                </Link>
 
-            {/* Account Dropdown Menu */}
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setAccountMenuOpen(!accountMenuOpen)}
-                aria-label="Account options"
-                aria-expanded={accountMenuOpen}
-                className="p-2 rounded-full border border-themeBorder bg-surface text-content-primary hover:bg-hoverSubtle hover:border-accent transition-colors flex items-center"
+                {/* Account Dropdown Menu */}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setAccountMenuOpen(!accountMenuOpen)}
+                    aria-label="Account options"
+                    aria-expanded={accountMenuOpen}
+                    className="p-2 rounded-full border border-themeBorder bg-surface text-content-primary hover:bg-hoverSubtle hover:border-accent transition-colors flex items-center"
+                  >
+                    <User className="w-4 h-4" />
+                  </button>
+
+                  {accountMenuOpen && (
+                    <>
+                      <div
+                        className="fixed inset-0 z-40"
+                        onClick={() => setAccountMenuOpen(false)}
+                      />
+                      <div className="absolute right-0 mt-2 w-56 rounded-card bg-surface border border-themeBorder shadow-elevated py-2 z-50 animate-in fade-in duration-150">
+                        <div className="px-4 py-2 border-b border-themeBorder">
+                          <p className="text-xs font-semibold text-content-primary truncate">
+                            {user.name}
+                          </p>
+                          <p className="text-[11px] text-content-secondary truncate">
+                            {user.email}
+                          </p>
+                        </div>
+
+                        <div className="py-1 text-xs">
+                          {accountLinks.map(({ label, path, icon: Icon }) => (
+                            <Link
+                              key={path}
+                              to={path}
+                              onClick={() => setAccountMenuOpen(false)}
+                              className="flex items-center px-4 py-2 text-content-primary hover:bg-hoverSubtle"
+                            >
+                              <Icon className="w-3.5 h-3.5 mr-2.5 text-accent" />
+                              <span>{label}</span>
+                            </Link>
+                          ))}
+                        </div>
+
+                        <div className="pt-1 border-t border-themeBorder">
+                          <button
+                            type="button"
+                            onClick={handleLogout}
+                            className="w-full text-left flex items-center px-4 py-2 text-xs text-red-500 hover:bg-hoverSubtle"
+                          >
+                            <LogOut className="w-3.5 h-3.5 mr-2.5" />
+                            <span>Logout</span>
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </>
+            ) : (
+              <Link
+                to="/login"
+                className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 transition-opacity"
               >
-                <User className="w-4 h-4" />
-              </button>
-
-              {accountMenuOpen && (
-                <>
-                  <div
-                    className="fixed inset-0 z-40"
-                    onClick={() => setAccountMenuOpen(false)}
-                  />
-                  <div className="absolute right-0 mt-2 w-56 rounded-card bg-surface border border-themeBorder shadow-elevated py-2 z-50 animate-in fade-in duration-150">
-                    <div className="px-4 py-2 border-b border-themeBorder">
-                      <p className="text-xs font-semibold text-content-primary truncate">
-                        {isAuthenticated ? user.name : 'Welcome, Connoisseur'}
-                      </p>
-                      <p className="text-[11px] text-content-secondary truncate">
-                        {isAuthenticated ? user.email : 'Explore Haute Parfumerie'}
-                      </p>
-                    </div>
-
-                    <div className="py-1 text-xs">
-                      <Link
-                        to="/profile"
-                        onClick={() => setAccountMenuOpen(false)}
-                        className="flex items-center px-4 py-2 text-content-primary hover:bg-hoverSubtle"
-                      >
-                        <User className="w-3.5 h-3.5 mr-2.5 text-accent" />
-                        <span>My Profile</span>
-                      </Link>
-                      <Link
-                        to="/orders"
-                        onClick={() => setAccountMenuOpen(false)}
-                        className="flex items-center px-4 py-2 text-content-primary hover:bg-hoverSubtle"
-                      >
-                        <Package className="w-3.5 h-3.5 mr-2.5 text-accent" />
-                        <span>My Orders</span>
-                      </Link>
-                      <Link
-                        to="/admin"
-                        onClick={() => setAccountMenuOpen(false)}
-                        className="flex items-center px-4 py-2 text-content-primary hover:bg-hoverSubtle"
-                      >
-                        <Settings className="w-3.5 h-3.5 mr-2.5 text-accent" />
-                        <span>Admin Atelier</span>
-                      </Link>
-                      <Link
-                        to="/dev/design-system"
-                        onClick={() => setAccountMenuOpen(false)}
-                        className="flex items-center px-4 py-2 text-content-primary hover:bg-hoverSubtle border-t border-themeBorder/50"
-                      >
-                        <Layers className="w-3.5 h-3.5 mr-2.5 text-accent" />
-                        <span>Design System Demo</span>
-                      </Link>
-                    </div>
-
-                    <div className="pt-1 border-t border-themeBorder">
-                      {isAuthenticated ? (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            logout();
-                            setAccountMenuOpen(false);
-                          }}
-                          className="w-full text-left flex items-center px-4 py-2 text-xs text-red-500 hover:bg-hoverSubtle"
-                        >
-                          <LogOut className="w-3.5 h-3.5 mr-2.5" />
-                          <span>Logout</span>
-                        </button>
-                      ) : (
-                        <Link
-                          to="/login"
-                          onClick={() => setAccountMenuOpen(false)}
-                          className="flex items-center px-4 py-2 text-xs text-content-primary hover:bg-hoverSubtle"
-                        >
-                          <span>Sign In / Register</span>
-                        </Link>
-                      )}
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
+                <LogIn className="w-3.5 h-3.5" />
+                <span>Sign In</span>
+              </Link>
+            )}
 
             {/* Theme Toggle */}
             <div className="h-5 w-px bg-themeBorder hidden sm:block" />
@@ -305,36 +302,55 @@ export const Navbar = () => {
 
               <div className="pt-4 border-t border-themeBorder space-y-2 text-xs">
                 <span className="uppercase tracking-widest text-content-secondary font-semibold block px-3">
-                  Account &amp; Management
+                  {isAuthenticated ? 'My Account' : 'Account'}
                 </span>
-                <Link
-                  to="/profile"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="block px-3 py-1.5 text-content-primary hover:text-accent"
-                >
-                  My Profile
-                </Link>
-                <Link
-                  to="/orders"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="block px-3 py-1.5 text-content-primary hover:text-accent"
-                >
-                  My Orders
-                </Link>
-                <Link
-                  to="/admin"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="block px-3 py-1.5 text-content-primary hover:text-accent"
-                >
-                  Admin Atelier
-                </Link>
-                <Link
-                  to="/dev/design-system"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="block px-3 py-1.5 text-content-primary hover:text-accent"
-                >
-                  Design System Showcase
-                </Link>
+                {isAuthenticated ? (
+                  <>
+                    <div className="px-3 pb-1">
+                      <p className="font-semibold text-content-primary truncate">{user.name}</p>
+                      <p className="text-[11px] text-content-secondary truncate">{user.email}</p>
+                    </div>
+                    {mobileAccountLinks.map(({ label, path, icon: Icon, count }) => (
+                      <Link
+                        key={path}
+                        to={path}
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="flex items-center px-3 py-1.5 text-content-primary hover:text-accent"
+                      >
+                        <Icon className="w-3.5 h-3.5 mr-2.5 text-accent" />
+                        <span>{label}</span>
+                        {count > 0 && <span className="ml-auto text-content-secondary">{count}</span>}
+                      </Link>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      className="w-full flex items-center px-3 py-1.5 text-red-500 hover:text-red-600"
+                    >
+                      <LogOut className="w-3.5 h-3.5 mr-2.5" />
+                      <span>Logout</span>
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <Link
+                      to="/login"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center px-3 py-1.5 text-content-primary hover:text-accent"
+                    >
+                      <LogIn className="w-3.5 h-3.5 mr-2.5 text-accent" />
+                      <span>Sign In</span>
+                    </Link>
+                    <Link
+                      to="/register"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center px-3 py-1.5 text-content-primary hover:text-accent"
+                    >
+                      <UserPlus className="w-3.5 h-3.5 mr-2.5 text-accent" />
+                      <span>Create Account</span>
+                    </Link>
+                  </>
+                )}
               </div>
             </div>
 

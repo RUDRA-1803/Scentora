@@ -32,7 +32,7 @@ export const PrivacyPage = () => {
             2. Local Browser Storage
           </h2>
           <p>
-            Theme preferences, shopping cart quantities, wishlist entries, and demonstration order identifiers are stored strictly within the client’s browser using standard HTML5 <code>localStorage</code>. This data can be reset or cleared at any time through your browser settings.
+            Theme preferences and guest shopping carts and wishlists are kept in the browser using standard HTML5 <code>localStorage</code>. Account details, saved carts, wishlists and orders are stored on the Scentora server (MongoDB) when you sign in, and passwords are stored only as salted hashes.
           </p>
         </div>
 
@@ -41,7 +41,7 @@ export const PrivacyPage = () => {
             3. Contact &amp; Inquiries
           </h2>
           <p>
-            Any email or contact submissions entered during demonstration interactions are handled locally in mock state and are not sold, transmitted, or distributed to third-party marketing entities.
+            Contact inquiries and newsletter sign-ups are stored on the Scentora server and are not sold, transmitted, or distributed to third-party marketing entities.
           </p>
         </div>
       </div>

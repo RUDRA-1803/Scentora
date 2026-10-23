@@ -105,7 +105,18 @@ scentora/
 ### Prerequisites
 - **Node.js**: v18.x or higher (Tested on Node v22.16.0)
 - **npm**: v9.x or higher (Tested on npm 10.9.2)
-- **MongoDB** (Optional for Phase 1): Local instance or MongoDB Atlas URI
+- **MongoDB** 7.x: local instance, Docker container, or MongoDB Atlas URI
+
+### 0. Start MongoDB
+
+The quickest way is Docker (data persists in the `scentora-mongo-data` volume and the container restarts automatically):
+
+```bash
+docker run -d --name scentora-mongo --restart unless-stopped \
+  -p 127.0.0.1:27017:27017 -v scentora-mongo-data:/data/db mongo:7.0
+```
+
+Day to day: `docker start scentora-mongo` / `docker stop scentora-mongo`.
 
 ---
 
@@ -115,9 +126,12 @@ Open a terminal in the project root:
 
 ```bash
 cd server
+cp .env.example .env   # then set JWT_SECRET to a long random string
 npm install
 npm run dev
 ```
+
+On first start, an empty database is seeded automatically with the catalogue (18 fragrances, 7 categories), demo accounts and sample orders. To wipe all data and reseed: `npm run seed:reset`.
 
 The Express server will start at:
 - **Root:** `http://localhost:5000`
@@ -131,8 +145,10 @@ The Express server will start at:
 | `NODE_ENV` | `development` | Runtime environment (`development` / `production`) |
 | `CLIENT_URL` | `http://localhost:5173` | Allowed frontend origin for CORS |
 | `MONGODB_URI`| `mongodb://127.0.0.1:27017/scentora` | MongoDB connection string |
+| `JWT_SECRET` | *(required)* | Secret used to sign login tokens. The server refuses to start without it. |
+| `JWT_EXPIRES_IN` | `7d` | How long a login stays valid |
 
-*Note: The server is resilient. If MongoDB is offline or `MONGODB_URI` is omitted, the server will continue running and report `database: disconnected` via `/api/health`.*
+*Note: If MongoDB is offline, the server keeps running: `/api/health` reports `database: disconnected` and every other endpoint returns `503` until the database is back.*
 
 ---
 
@@ -154,6 +170,54 @@ The Vite dev server will start at:
 | Variable | Default Value | Description |
 | :--- | :--- | :--- |
 | `VITE_API_URL` | `http://localhost:5000/api` | Backend Express API base URL |
+
+---
+
+### 3. Demo Accounts (seeded)
+
+| Role | Email | Password |
+| :--- | :--- | :--- |
+| Admin | `admin@scentora.com` | `scentora2026` |
+| Customer | `connoisseur@scentora.com` | `perfume123` |
+| Customer (with order history) | `aaditya.sharma@example.com`, `natasha.s@example.com` | `perfume123` |
+
+Promo code: `SCENT10` (10% off). Orders under ₹3,000 pay ₹250 shipping.
+
+---
+
+## 🔌 REST API
+
+All endpoints are under `/api`. Successful responses are `{ "status": "success", "data": ... }`; errors are `{ "status": "error", "message": "..." }`. Authenticated requests send `Authorization: Bearer <token>` (the token comes from login/register).
+
+| Method | Endpoint | Access | Description |
+| :--- | :--- | :--- | :--- |
+| GET | `/health` | Public | Server and database status |
+| POST | `/auth/register` | Public | Create a customer account → `{ token, user }` |
+| POST | `/auth/login` | Public | Sign in → `{ token, user }` |
+| POST | `/auth/admin/login` | Public | Sign in, administrators only |
+| GET | `/auth/me` | User | Current user |
+| GET | `/products` | Public | All products (optional `?category=` and `?search=`) |
+| GET | `/products/:idOrSlug` | Public | One product |
+| POST / PUT / DELETE | `/products`, `/products/:id` | Admin | Create, update (partial), delete |
+| GET | `/categories` | Public | All categories |
+| POST / PUT / DELETE | `/categories`, `/categories/:id` | Admin | Create, update, delete |
+| POST | `/orders` | Public / User | Place an order (guest or signed in). The server prices items, applies the coupon, adds shipping and reserves stock. |
+| GET | `/orders/mine` | User | My orders |
+| GET | `/orders/:id` | Owner / Admin | One order (guest orders are readable by id) |
+| GET | `/orders` | Admin | All orders |
+| PATCH | `/orders/:id/status` | Admin | Set `Processing`, `Shipped` or `Delivered` |
+| DELETE | `/orders/:id` | Admin | Delete an order |
+| PUT | `/account/profile` | User | Update name, email, phone, address, preferences |
+| GET / PUT | `/account/cart` | User | Saved cart (`{ items: [{ productId, quantity }] }`) |
+| GET / PUT | `/account/wishlist` | User | Saved wishlist (`{ productIds: [] }`) |
+| POST | `/coupons/validate` | Public | Check a promo code |
+| POST | `/contact` | Public | Submit a contact inquiry |
+| POST | `/newsletter` | Public | Subscribe an email |
+| GET | `/admin/customers` | Admin | Customers with order count, lifetime spend and tier |
+| GET | `/admin/inquiries` | Admin | Contact inquiries |
+| POST | `/admin/reset-catalogue` | Admin | Restore products and categories to the seed data |
+
+**How the frontend uses it:** the React contexts (`ProductContext`, `AuthContext`, `CartContext`, `WishlistContext`, `OrderContext`) call these endpoints through `client/src/services/scentoraApi.js`. Guests' carts and wishlists live in `localStorage`; when a guest signs in, they are merged into the account and synced to the server from then on.
 
 ---
 

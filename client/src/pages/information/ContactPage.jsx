@@ -3,6 +3,7 @@ import { Mail, Clock, MapPin, Send, CheckCircle2, MessageSquare } from 'lucide-r
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
 import Badge from '../../components/common/Badge';
+import { storeApi } from '../../services/scentoraApi';
 
 export const ContactPage = () => {
   const [formData, setFormData] = useState({
@@ -14,21 +15,30 @@ export const ContactPage = () => {
 
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
+  const [isSending, setIsSending] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.name.trim() || !formData.email.trim() || !formData.message.trim()) {
       setError('Please fill in your name, email, and message inquiry.');
       return;
     }
 
-    setSubmitted(true);
-    setError('');
+    setIsSending(true);
+    try {
+      await storeApi.contact(formData);
+      setSubmitted(true);
+      setError('');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsSending(false);
+    }
   };
 
   return (
@@ -59,10 +69,10 @@ export const ContactPage = () => {
                 <CheckCircle2 className="w-6 h-6" />
               </div>
               <h3 className="font-serif text-xl font-semibold text-content-primary">
-                Inquiry Received (Demo)
+                Inquiry Received
               </h3>
               <p className="text-xs text-content-secondary max-w-sm mx-auto leading-relaxed">
-                Thank you, <strong>{formData.name}</strong>. Your demonstration inquiry has been recorded. Our team simulates responses within 24 business hours.
+                Thank you, <strong>{formData.name}</strong>. Your inquiry has been recorded. Our concierge team responds within 24 business hours.
               </p>
               <Button
                 variant="secondary"
@@ -126,7 +136,7 @@ export const ContactPage = () => {
                 />
               </div>
 
-              <Button type="submit" variant="primary" size="lg" className="w-full flex items-center justify-center space-x-2">
+              <Button type="submit" variant="primary" size="lg" disabled={isSending} className="w-full flex items-center justify-center space-x-2">
                 <Send className="w-4 h-4" />
                 <span>Submit Inquiry</span>
               </Button>
