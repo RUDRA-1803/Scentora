@@ -34,17 +34,34 @@ export const connectDB = async () => {
     console.warn(`⚠️  MongoDB Connection Warning: ${error.message}`);
     console.log('ℹ️  Server will remain active with health endpoint accessible.');
   }
+};
 
-  mongoose.connection.on('disconnected', () => {
-    isConnected = false;
-    console.warn('⚠️  MongoDB disconnected');
-  });
+// Registered once at module load so repeated connection attempts don't stack listeners
+mongoose.connection.on('disconnected', () => {
+  isConnected = false;
+  console.warn('⚠️  MongoDB disconnected');
+});
 
-  mongoose.connection.on('reconnected', () => {
-    isConnected = true;
-    connectionError = null;
-    console.log('✅ MongoDB reconnected');
-  });
+mongoose.connection.on('reconnected', () => {
+  isConnected = true;
+  connectionError = null;
+  console.log('✅ MongoDB reconnected');
+});
+
+/**
+ * Connects on demand for serverless runtimes (Vercel), where there is no startup hook.
+ * Concurrent callers share one in-flight attempt; a failed attempt is retried on the next call.
+ */
+let pendingConnection = null;
+
+export const ensureDBConnection = () => {
+  if (mongoose.connection.readyState === 1) return Promise.resolve();
+  if (!pendingConnection) {
+    pendingConnection = connectDB().finally(() => {
+      pendingConnection = null;
+    });
+  }
+  return pendingConnection;
 };
 
 /**
