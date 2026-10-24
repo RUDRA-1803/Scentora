@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
-import { connectDB } from './config/db.js';
+import { connectDB, ensureDBConnection } from './config/db.js';
 import { seedDatabase } from './seed/seeder.js';
 import apiRouter from './routes/index.js';
 import { errorHandler } from './middleware/errorHandler.js';
@@ -11,9 +11,13 @@ import { notFoundHandler } from './middleware/notFoundHandler.js';
 // Load environment variables from .env file
 dotenv.config();
 
+// Vercel sets VERCEL=1 in its runtime; the app then runs as a serverless function, not a long-lived server
+const IS_VERCEL = Boolean(process.env.VERCEL);
+
 if (!process.env.JWT_SECRET) {
   console.error('❌ JWT_SECRET is not set in server/.env — authentication cannot work without it.');
-  process.exit(1);
+  // A serverless function can't exit; requests are rejected with a 500 below instead
+  if (!IS_VERCEL) process.exit(1);
 }
 
 const app = express();
@@ -53,6 +57,21 @@ app.use(
 // JSON and URL-encoded body parsing
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Serverless: each cold start must connect to MongoDB before requests reach requireDb
+if (IS_VERCEL) {
+  app.use(async (req, res, next) => {
+    if (!process.env.JWT_SECRET) {
+      return res.status(500).json({
+        status: 'error',
+        message: 'Server misconfigured: JWT_SECRET is not set.',
+        timestamp: new Date().toISOString(),
+      });
+    }
+    await ensureDBConnection();
+    next();
+  });
+}
 
 // Simple root welcome route
 app.get('/', (req, res) => {
@@ -104,6 +123,7 @@ const startServer = async () => {
   });
 };
 
-startServer();
+// On Vercel the platform invokes the exported app per request (see api/index.js); no listen or auto-seed
+if (!IS_VERCEL) startServer();
 
 export default app;
